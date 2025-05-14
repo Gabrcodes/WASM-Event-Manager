@@ -1,101 +1,68 @@
-#include <iostream>
-#include <string>
-#include <vector>
-#include <limits>   // Required for std::numeric_limits
-// No need to include fstream here as EventsManager handles it.
+#include "EventSystem.h" // Single header for all project declarations
+#include <iostream>      // For standard I/O in main
+#include <string>        // For std::string in main
+#include <limits>        // For std::numeric_limits
+#include <fstream>       // For std::fstream
 
-// #include "utils.h" // Included via EventsManager or EventSystemEntities if needed by them directly
-#include "EventSystemEntities.h" // Includes User, Attendee, Event, EventType, derived events
-#include "EventsManager.h"       // Manages events and uses entities
-
-// Function to display the main menu
-void displayMenu() {
-    std::cout << "\n===== Event Management System =====" << std::endl;
-    std::cout << "1. Create Event" << std::endl;
-    std::cout << "2. Delete Event" << std::endl;
-    std::cout << "3. Show All Events" << std::endl;
-    std::cout << "4. Sign Up for an Event" << std::endl;
-    std::cout << "5. Search Events" << std::endl;
-    std::cout << "6. View My Details" << std::endl;
-    std::cout << "7. Update My Details" << std::endl;
-    std::cout << "8. Exit" << std::endl;
-    std::cout << "===================================" << std::endl;
-    std::cout << "Enter your choice: ";
-}
-
-// Function to get/update user details
-void manageUserDetails(User* user) {
-    std::string name, email, phone, company;
-    std::cout << "\n--- Update Your Details ---" << std::endl;
-    
-    std::cout << "Current Name: " << user->getName() << std::endl;
-    std::cout << "New Name (leave blank to keep current): ";
-    std::getline(std::cin >> std::ws, name);
-    if (!name.empty()) user->setName(name);
-
-    std::cout << "Current Email: " << user->getEmail() << std::endl;
-    std::cout << "New Email (leave blank to keep current): ";
-    std::getline(std::cin >> std::ws, email);
-    if (!email.empty()) user->setEmail(email);
-
-    std::cout << "Current Phone: " << user->getPhoneNumber() << std::endl;
-    std::cout << "New Phone (leave blank to keep current): ";
-    std::getline(std::cin >> std::ws, phone);
-    if (!phone.empty()) user->setPhoneNumber(phone);
-
-    std::cout << "Current Company/School: " << user->getCompanyOrSchool() << std::endl;
-    std::cout << "New Company/School (leave blank to keep current): ";
-    std::getline(std::cin >> std::ws, company);
-    if (!company.empty()) user->setCompanyOrSchool(company);
-
-    std::cout << "Details updated successfully!" << std::endl;
-}
-
-// Function to view user details
-void viewUserDetails(const User* user) {
-    if (!user) {
-        std::cout << "User data not available." << std::endl;
-        return;
-    }
-    std::cout << "\n--- Your Details ---" << std::endl;
-    std::cout << "Name: " << user->getName() << std::endl;
-    std::cout << "Email: " << user->getEmail() << std::endl;
-    std::cout << "Phone: " << user->getPhoneNumber() << std::endl;
-    std::cout << "Company/School: " << user->getCompanyOrSchool() << std::endl;
-    std::cout << "--------------------" << std::endl;
-}
-
+// Using namespace std as in the original global scope effect for main
+using namespace std;
 
 int main() {
-    // Define the path for the event data file
-    const std::string eventDataFile = "EventFile.txt";
-
-    // Initialize EventsManager, which will load events from the file
-    EventsManager eventManager(eventDataFile);
-
-    // Get the singleton User instance
-    User* currentUser = User::getInstance();
-
-    // Initial prompt for user details if they are not set (e.g., first run)
-    if (currentUser->getName().empty() && currentUser->getEmail().empty()) {
-        std::cout << "Welcome! It looks like this is your first time or your details are not set." << std::endl;
-        manageUserDetails(currentUser); // Use the update function to set initial details
+    // File stream management
+    fstream eventFile("EventFile.txt", ios::in | ios::out | ios::app);
+    if (!eventFile.is_open()) {
+        eventFile.open("EventFile.txt", ios::out); // Create if not exists
+        eventFile.close();
+        eventFile.open("EventFile.txt", ios::in | ios::out | ios::app);
+        if (!eventFile.is_open()) {
+            cerr << "Error: Could not open or create EventFile.txt. Exiting." << endl;
+            return 1;
+        }
     }
+
+    Events eventManager(eventFile); // Uses the 'Events' class (original name 'events')
+    User* user = User::getInstance();
+
+    // Set user details once - exactly as in original main
+    string name_main, email_main, phone_main, company_main; // Renamed to avoid conflict
+    cout << "Enter your details:\n";
+    cout << "Name: ";
+    getline(cin >> ws, name_main);
+    cout << "Email: ";
+    getline(cin >> ws, email_main);
+    cout << "Phone: ";
+    getline(cin >> ws, phone_main);
+    cout << "Company/School: ";
+    getline(cin >> ws, company_main);
+
+    user->setName(name_main);
+    user->setEmail(email_main);
+    user->setPhoneNumber(phone_main);
+    user->setCompanyOrSchool(company_main);
 
     int choice;
     while (true) {
-        displayMenu();
-        // Input validation for menu choice
-        while (!(std::cin >> choice)) {
-            std::cout << "Invalid input. Please enter a number: ";
-            std::cin.clear(); // Clear error flags
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Discard invalid input
+        cout << "\nMenu:\n";
+        cout << "1. Create Event\n";
+        cout << "2. Delete Event\n";
+        cout << "3. Show All Events\n";
+        cout << "4. Sign Up for an event\n";
+        cout << "5. Search\n";
+        cout << "6. Exit\n";
+        cout << "Enter your choice: ";
+        cin >> choice;
+
+        if (cin.fail()) {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            cout << "Invalid input, please enter a number.\n";
+            continue;
         }
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Consume the rest of the line after reading integer
+        // Consider adding cin.ignore() here if subsequent operations use getline
 
         switch (choice) {
             case 1:
-                eventManager.createEvent(currentUser);
+                eventManager.createEvent(user);
                 break;
             case 2:
                 eventManager.deleteEvent();
@@ -104,30 +71,26 @@ int main() {
                 eventManager.showAllEvents();
                 break;
             case 4:
-                eventManager.signUpForEvent(currentUser);
+                eventManager.signUp(user); // Calls Events::signUp
                 break;
             case 5:
-                eventManager.searchEvents();
+                eventManager.search();
                 break;
             case 6:
-                viewUserDetails(currentUser);
-                break;
-            case 7:
-                manageUserDetails(currentUser);
-                break;
-            case 8:
-                std::cout << "Saving events and exiting. Goodbye!" << std::endl;
-                // Destructor of eventManager will handle saving.
-                return 0; // Exit the program
+                cout << "Goodbye!\n";
+                if (eventFile.is_open()) {
+                    eventFile.close(); // Close file before exiting
+                }
+                // Destructor of eventManager will also attempt to save.
+                // Ensure file is handled consistently.
+                return 0;
             default:
-                std::cout << "Invalid option, please try again." << std::endl;
+                cout << "Invalid option, try again.\n";
         }
     }
-
-    // The User instance is a singleton and typically not deleted manually in this simple setup,
-    // as its lifetime is intended to be the duration of the application.
-    // OS will reclaim memory on program exit. For more complex scenarios,
-    // a proper cleanup mechanism for singletons might be considered.
-
-    return 0; // Should be unreachable due to loop and exit condition
+    // Should be unreachable
+    // if (eventFile.is_open()) {
+    //    eventFile.close();
+    // }
+    // return 0; 
 }
