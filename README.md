@@ -6,7 +6,7 @@ This project was developed to explore the capabilities of C++ and SDL2 for web d
 
 ## Live Demo
 
-*(Optional: Once deployed, you can add your GitHub Pages link here, e.g., `https://gabrcodes.github.io/WASM-Event-Manager/event_gui.html`)*
+[Live Demo Link](https://oopwasm.kremzein.com/event_gui.html)
 
 ## Features
 
