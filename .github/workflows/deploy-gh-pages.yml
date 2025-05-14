@@ -1,0 +1,61 @@
+name: Build and Deploy WASM Event Manager to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main # Or 'master', or whichever is your default/main branch
+  workflow_dispatch: # Allows you to trigger the workflow manually from the Actions tab
+
+permissions:
+  contents: write # Necessary to push to the gh-pages branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4 # Checks out your repository's code
+
+      - name: Setup Emscripten SDK
+        uses: mymindstorm/setup-emsdk@v12 # Action to install Emscripten
+        with:
+          version: '3.1.55' # Specify a recent, stable Emscripten version. Check for latest if needed.
+          # Optional: Caches SDK for faster subsequent runs
+          # actions-cache-folder: 'emsdk-cache' 
+
+      - name: Verify Emscripten version
+        run: emcc --version
+
+      - name: Create build output directory
+        run: mkdir -p build_output # Directory to store the compiled files
+
+      - name: Compile C++/SDL2 project with Emscripten
+        run: |
+          emcc main.cpp app_logic.cpp gui_utils.cpp \
+               -o ./build_output/event_gui.html \
+               -s USE_SDL=2 \
+               -s USE_SDL_TTF=2 \
+               -s ALLOW_MEMORY_GROWTH=1 \
+               -s ASYNCIFY \
+               --preload-file arial.ttf \
+               -s FULL_ES2=1 \
+               -s "EXPORTED_FUNCTIONS=['_main']" \
+               -s "EXPORTED_RUNTIME_METHODS=['FS','ccall','IDBFS']" \
+               -lidbfs.js \
+               -O2 # Optimization level for deployment (can be -O3 for more)
+          # Ensure all output files (js, wasm, data) are also in build_output
+          # Emscripten usually places them alongside the .html file if -o specifies a path.
+          # If not, add 'mv' commands here:
+          # mv event_gui.js event_gui.wasm event_gui.data ./build_output/
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }} # Provided by GitHub Actions
+          publish_dir: ./build_output # The directory containing your built website
+          # Optional: if you want to publish to a subdirectory on gh-pages like /my-app/
+          # target_branch: gh-pages # Default is gh-pages
+          # publish_branch: gh-pages # Default
+          # user_name: 'github-actions[bot]' # Optional: custom commit user
+          # user_email: 'github-actions[bot]@users.noreply.github.com' # Optional: custom commit email
+          # cname: your.customdomain.com # If you have a custom domain configured for GitHub Pages
