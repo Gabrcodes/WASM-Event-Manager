@@ -67,7 +67,7 @@ To build this project from source, you will need the Emscripten SDK installed an
 
 1. **Clone the Repository:**
    ```bash
-   git clone [https://github.com/gabrcodes/WASM-Event-Manager.git](https://github.com/gabrcodes/WASM-Event-Manager.git) 
+   git clone https://github.com/gabrcodes/WASM-Event-Manager.git
    cd WASM-Event-Manager
    ```
 
