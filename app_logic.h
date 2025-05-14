@@ -63,7 +63,6 @@ private:
     string companyOrSchool;
 public:
     attendee(string n, string e, string p, string cs);
-    // Add getters if needed in the future
 };
 
 class event {
@@ -77,15 +76,13 @@ protected:
     vector<attendee*> attendees;
 
 public:
-    // Constructor for loading from file (host is known)
     event(string t, string h, string d, string dt, string v, int c);
-    // Constructor for creating new event (host comes from User object)
     event(User* user, const string& t, const string& desc, const string& dt, const string& vp, int cap);
 
     virtual ~event();
 
-    virtual string signUp(User* user, string& message) = 0; // Pure virtual
-    virtual eventType getType() = 0; // Pure virtual
+    virtual string signUp(User* user, string& message) = 0; 
+    virtual eventType getType() = 0; 
 
     string getTitle() const;
     string getHost() const;
@@ -102,7 +99,6 @@ public:
     void setvPlatform(string v);
     void setCapacity(int c);
 
-    // Static factory method for creating events
     static event* createEvent(eventType type, User* user, const string& title, const string& desc, const string& dts, const string& vps, int capacity_val);
 };
 
@@ -139,11 +135,11 @@ public:
 class events {
 private:
     vector<event*> allEvents;
-    string dataFilePath; // Set in constructor or make const
+    string dataFilePath; 
 
 public:
-    events(); // Constructor
-    ~events(); // Destructor
+    events(); 
+    ~events(); 
 
     string createEvent(User* user, eventType type_enum, const string& title, const string& desc, const string& dt, const string& vp, const string& capStr);
     vector<string> getAllEventTitles() const;
