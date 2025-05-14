@@ -1,5 +1,12 @@
-#include "app_logic.h"
-#include <iostream> // For cerr/cout in some methods
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h> 
+#endif
+
+#include "app_logic.h" // This will now correctly bring in the SHIFT definition
+#include <iostream> 
+
+// Using namespace std for convenience in this .cpp file
+using namespace std;
 
 // --- Helper Function Definitions ---
 string cEncrypt(const string& str, int shift) {
@@ -283,7 +290,7 @@ vector<string> events::getAllEventTitles() const {
 string events::attemptDeleteEvent(const string& titleQuery, bool& foundDirectly, bool& foundSuggestion) {
     foundDirectly = false;
     foundSuggestion = false;
-    string localSuggestedMatch = ""; // Use local for this specific attempt
+    string localSuggestedMatch = ""; 
     int minDist = numeric_limits<int>::max();
 
     for (size_t i = 0; i < allEvents.size(); ++i) {
@@ -299,7 +306,7 @@ string events::attemptDeleteEvent(const string& titleQuery, bool& foundDirectly,
         }
     }
     
-    extern string suggestedMatch; // Access the global suggestedMatch for confirmation
+    extern string suggestedMatch; 
     if (!localSuggestedMatch.empty() && minDist < 5 && levenshteinDistance(titleQuery, localSuggestedMatch) <= (localSuggestedMatch.length() / 2) ) {
         suggestedMatch = localSuggestedMatch; 
         foundSuggestion = true;
@@ -309,7 +316,7 @@ string events::attemptDeleteEvent(const string& titleQuery, bool& foundDirectly,
 }
 
 string events::confirmDeleteSuggestedEvent() {
-    extern string suggestedMatch; // Access global
+    extern string suggestedMatch; 
     if (suggestedMatch.empty()) {
         return "Error: No suggested event to delete.";
     }
@@ -339,7 +346,7 @@ string events::attemptSignUp(User* user, const string& titleQuery, bool& foundDi
             updateBestMatch(titleQuery, e->getTitle(), localSuggestedMatch, minDist);
         }
     }
-    extern string suggestedMatch; // Access global
+    extern string suggestedMatch; 
     if (!localSuggestedMatch.empty() && minDist < 5 && levenshteinDistance(titleQuery, localSuggestedMatch) <= (localSuggestedMatch.length() / 2)) {
         suggestedMatch = localSuggestedMatch; 
         foundSuggestion = true;
@@ -353,7 +360,7 @@ string events::confirmSignUpSuggestedEvent(User* user, string& signUpMessage) {
         signUpMessage = "Error: User not signed in for confirmation.";
         return signUpMessage;
     }
-    extern string suggestedMatch; // Access global
+    extern string suggestedMatch; 
     if (suggestedMatch.empty()) {
         signUpMessage = "Error: No suggested event to sign up for.";
         return signUpMessage;
@@ -392,7 +399,7 @@ bool events::saveEventsToFile() {
     for (const auto e : allEvents) {
         if (e) { 
             eventFile << to_string(e->getType()) << '|'
-                      << cEncrypt(e->getTitle(), SHIFT) << '|'
+                      << cEncrypt(e->getTitle(), SHIFT) << '|' // SHIFT is now visible
                       << cEncrypt(e->getHost(), SHIFT) << '|'
                       << cEncrypt(e->getDescription(), SHIFT) << '|'
                       << cEncrypt(e->getdateAndTime(), SHIFT) << '|'
@@ -403,9 +410,9 @@ bool events::saveEventsToFile() {
     eventFile.close();
     cout << "Saved " << allEvents.size() << " events to " << dataFilePath << endl;
     #ifdef __EMSCRIPTEN__
-    EM_ASM({
+    EM_ASM({ 
         if (typeof FS !== 'undefined' && FS.syncfs) {
-            FS.syncfs(false, function(err) {
+            FS.syncfs(false, function(err) { 
                 if (err) {
                     console.error("FS.syncfs error during save for " + UTF8ToString($0) + ": ", err);
                 } else {
@@ -415,7 +422,7 @@ bool events::saveEventsToFile() {
         } else {
             console.warn("FS.syncfs not available for saveEventsToFile.");
         }
-    }, dataFilePath.c_str());
+    }, dataFilePath.c_str()); 
     #endif
     return true;
 }
@@ -471,7 +478,7 @@ void events::loadEventsFromFile() {
             continue;
         }
 
-        title_load = cDecrypt(title_load, SHIFT);
+        title_load = cDecrypt(title_load, SHIFT); // SHIFT is now visible
         host_load = cDecrypt(host_load, SHIFT);
         description_load = cDecrypt(description_load, SHIFT);
         dateAndTime_load = cDecrypt(dateAndTime_load, SHIFT);

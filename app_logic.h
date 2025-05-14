@@ -1,114 +1,111 @@
 #pragma once // Include guard
 
-#include <string>
-#include <vector>
-#include <limits>    // Required for std::numeric_limits
-#include <algorithm> // Required for std::max, std::min
-#include <fstream>   // Required for fstream
-#include <sstream>   // Required for stringstream
-#include <stdexcept> // Required for std::invalid_argument, std::out_of_range
-
-// Using std namespace for convenience in this header, or qualify types.
-// For larger projects, it's often better to qualify (e.g., std::string)
-// or use 'using' declarations for specific types within .cpp files.
-using namespace std;
-
-
+// Define SHIFT at the top so it's available for all subsequent includes and declarations
 #define SHIFT 32 
 
-// --- Helper Function Declarations ---
-string cEncrypt(const string& str, int shift);
-string cDecrypt(const string& str, int shift);
-int levenshteinDistance(const string& a, const string& b);
-void updateBestMatch(const string& query, const string& candidate, string& bestMatch, int& minDist);
-void addIfAccurateEnough(vector<string>& vec, const string& query, const string& current, double threshold = 0.75);
+#include <string> // For std::string
+#include <vector> // For std::vector
+#include <limits>    
+#include <algorithm> 
+#include <fstream>   
+#include <sstream>   
+#include <stdexcept> 
 
 // --- Enum Definitions ---
 enum eventType { Webinar, Conference, Workshop };
 
 // --- Class Declarations ---
+class User; 
+
+// --- Helper Function Declarations ---
+std::string cEncrypt(const std::string& str, int shift);
+std::string cDecrypt(const std::string& str, int shift);
+int levenshteinDistance(const std::string& a, const std::string& b);
+void updateBestMatch(const std::string& query, const std::string& candidate, std::string& bestMatch, int& minDist);
+void addIfAccurateEnough(std::vector<std::string>& vec, const std::string& query, const std::string& current, double threshold = 0.75);
+
 
 class User {
 private:
     static User* instance;
-    User(); // Private constructor for Singleton
+    User(); 
 
-    string name;
-    string email;
-    string phoneNum;
-    string companyOrSchool;
+    std::string name;
+    std::string email;
+    std::string phoneNum;
+    std::string companyOrSchool;
 
 public:
-    User(const User&) = delete; // Disable copy constructor
-    User& operator=(const User&) = delete; // Disable assignment operator
+    User(const User&) = delete; 
+    User& operator=(const User&) = delete; 
 
     static User* getInstance();
 
-    void setName(const string& n);
-    void setEmail(const string& e);
-    void setPhoneNumber(const string& p);
-    void setCompanyOrSchool(const string& c);
+    void setName(const std::string& n);
+    void setEmail(const std::string& e);
+    void setPhoneNumber(const std::string& p);
+    void setCompanyOrSchool(const std::string& c);
 
-    string getName() const;
-    string getEmail() const;
-    string getPhoneNumber() const;
-    string getCompanyOrSchool() const;
+    std::string getName() const;
+    std::string getEmail() const;
+    std::string getPhoneNumber() const;
+    std::string getCompanyOrSchool() const;
 };
 
 class attendee {
 private:
-    string name;
-    string email;
-    string phoneNum;
-    string companyOrSchool;
+    std::string name;
+    std::string email;
+    std::string phoneNum;
+    std::string companyOrSchool;
 public:
-    attendee(string n, string e, string p, string cs);
+    attendee(std::string n, std::string e, std::string p, std::string cs);
 };
 
 class event {
 protected:
-    string title;
-    string host;
-    string description;
-    string dateAndTime;
-    string vPlatform;
+    std::string title;
+    std::string host;
+    std::string description;
+    std::string dateAndTime;
+    std::string vPlatform;
     int capacity;
-    vector<attendee*> attendees;
+    std::vector<attendee*> attendees;
 
 public:
-    event(string t, string h, string d, string dt, string v, int c);
-    event(User* user, const string& t, const string& desc, const string& dt, const string& vp, int cap);
+    event(std::string t, std::string h, std::string d, std::string dt, std::string v, int c);
+    event(User* user, const std::string& t, const std::string& desc, const std::string& dt, const std::string& vp, int cap);
 
     virtual ~event();
 
-    virtual string signUp(User* user, string& message) = 0; 
+    virtual std::string signUp(User* user, std::string& message) = 0; 
     virtual eventType getType() = 0; 
 
-    string getTitle() const;
-    string getHost() const;
-    string getDescription() const;
-    string getdateAndTime() const;
-    string getvPlatform() const;
+    std::string getTitle() const;
+    std::string getHost() const;
+    std::string getDescription() const;
+    std::string getdateAndTime() const;
+    std::string getvPlatform() const;
     int getcapacity() const;
     int getAttendeeCount() const;
 
-    void setTitle(string t);
-    void setHost(string h);
-    void setDescription(string d);
-    void setDateAndTime(string dt);
-    void setvPlatform(string v);
+    void setTitle(std::string t);
+    void setHost(std::string h);
+    void setDescription(std::string d);
+    void setDateAndTime(std::string dt);
+    void setvPlatform(std::string v);
     void setCapacity(int c);
 
-    static event* createEvent(eventType type, User* user, const string& title, const string& desc, const string& dts, const string& vps, int capacity_val);
+    static event* createEvent(eventType type, User* user, const std::string& title, const std::string& desc, const std::string& dts, const std::string& vps, int capacity_val);
 };
 
 class webinar : public event {
 private:
     eventType type_val;
 public:
-    webinar(eventType ty_enum, string t, string h, string d, string dt, string v, int c);
-    webinar(User* user, const string& t, const string& desc, const string& date, const string& vp, int cap);
-    string signUp(User* user, string& message) override;
+    webinar(eventType ty_enum, std::string t, std::string h, std::string d, std::string dt, std::string v, int c);
+    webinar(User* user, const std::string& t, const std::string& desc, const std::string& date, const std::string& vp, int cap);
+    std::string signUp(User* user, std::string& message) override;
     eventType getType() override;
 };
 
@@ -116,9 +113,9 @@ class conference : public event {
 private:
     eventType type_val;
 public:
-    conference(eventType ty_enum, string t, string h, string d, string dt, string v, int c);
-    conference(User* user, const string& t, const string& desc, const string& date, const string& vp, int cap);
-    string signUp(User* user, string& message) override;
+    conference(eventType ty_enum, std::string t, std::string h, std::string d, std::string dt, std::string v, int c);
+    conference(User* user, const std::string& t, const std::string& desc, const std::string& date, const std::string& vp, int cap);
+    std::string signUp(User* user, std::string& message) override;
     eventType getType() override;
 };
 
@@ -126,28 +123,28 @@ class workshop : public event {
 private:
     eventType type_val;
 public:
-    workshop(eventType ty_enum, string t, string h, string d, string dt, string v, int c);
-    workshop(User* user, const string& t, const string& desc, const string& date, const string& vp, int cap);
-    string signUp(User* user, string& message) override;
+    workshop(eventType ty_enum, std::string t, std::string h, std::string d, std::string dt, std::string v, int c);
+    workshop(User* user, const std::string& t, const std::string& desc, const std::string& date, const std::string& vp, int cap);
+    std::string signUp(User* user, std::string& message) override;
     eventType getType() override;
 };
 
 class events {
 private:
-    vector<event*> allEvents;
-    string dataFilePath; 
+    std::vector<event*> allEvents;
+    std::string dataFilePath; 
 
 public:
     events(); 
     ~events(); 
 
-    string createEvent(User* user, eventType type_enum, const string& title, const string& desc, const string& dt, const string& vp, const string& capStr);
-    vector<string> getAllEventTitles() const;
-    string attemptDeleteEvent(const string& titleQuery, bool& foundDirectly, bool& foundSuggestion);
-    string confirmDeleteSuggestedEvent();
-    string attemptSignUp(User* user, const string& titleQuery, bool& foundDirectly, bool& foundSuggestion, string& signUpMessage);
-    string confirmSignUpSuggestedEvent(User* user, string& signUpMessage);
-    vector<string> searchEvents(const string& query);
+    std::string createEvent(User* user, eventType type_enum, const std::string& title, const std::string& desc, const std::string& dt, const std::string& vp, const std::string& capStr);
+    std::vector<std::string> getAllEventTitles() const;
+    std::string attemptDeleteEvent(const std::string& titleQuery, bool& foundDirectly, bool& foundSuggestion);
+    std::string confirmDeleteSuggestedEvent();
+    std::string attemptSignUp(User* user, const std::string& titleQuery, bool& foundDirectly, bool& foundSuggestion, std::string& signUpMessage);
+    std::string confirmSignUpSuggestedEvent(User* user, std::string& signUpMessage);
+    std::vector<std::string> searchEvents(const std::string& query);
     
     bool saveEventsToFile();
     void loadEventsFromFile();

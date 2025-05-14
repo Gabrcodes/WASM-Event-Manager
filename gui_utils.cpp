@@ -1,41 +1,26 @@
-#include "gui_utils.h"
-#include <iostream> // For cerr if needed in these functions
+#include "gui_utils.h" // This now brings in the extern declarations
+#include <iostream> 
 
-// Since AppState is only forward-declared in gui_utils.h,
-// the Button constructor which takes AppState as a parameter type is fine.
-// If specific AppState::SOME_VALUE was used in this .cpp file AND AppState
-// was only forward-declared, it would be an issue. But it's not.
+// The extern declarations for gRenderer, gFont, SCREEN_WIDTH, colors etc.,
+// are now in gui_utils.h and will be linked from main.cpp's definitions.
+// No need for local 'extern' keywords here anymore.
 
 // --- GUI Helper Struct Definitions ---
-Button::Button(int x, int y, int w, int h, string t, AppState ts, int aid)
+Button::Button(int x, int y, int w, int h, std::string t, AppState ts, int aid)
     : text(std::move(t)), targetState(ts), actionId(aid), hovered(false) {
     rect = {x, y, w, h};
 }
 
-InputField::InputField(int x, int y, int w, int h, string p)
+InputField::InputField(int x, int y, int w, int h, std::string p)
     : placeholder(std::move(p)), text(""), isActive(false), maxLength(100) {
     rect = {x, y, w, h};
 }
 
 
 // --- GUI Function Definitions ---
-
-// These functions rely on global variables defined in main.cpp
-// (gRenderer, gFont, SCREEN_WIDTH, various SDL_Colors).
-// This is a common way to handle it in simpler SDL apps, but for larger
-// projects, passing a "RenderContext" struct or class might be cleaner.
-extern SDL_Renderer* gRenderer; 
-extern TTF_Font* gFont;
-extern const int SCREEN_WIDTH; 
-extern SDL_Color BUTTON_HOVER_COLOR; 
-extern SDL_Color BUTTON_COLOR;
-extern SDL_Color TEXT_COLOR;
-extern SDL_Color INPUT_BG_COLOR;
-
-
-void render_text(const string& text, int x, int y, SDL_Color color, bool center, int wrapWidth) { 
-    if (!gRenderer) { /* cerr << "render_text: gRenderer is null!" << endl; */ return; }
-    if (!gFont) { /* cerr << "render_text: gFont is null! Cannot render: " << text.substr(0,50) << endl; */ return; }
+void render_text(const std::string& text, int x, int y, SDL_Color color, bool center, int wrapWidth) { 
+    if (!gRenderer) { return; }
+    if (!gFont) { std::cerr << "render_text: gFont is null! Cannot render: " << text.substr(0,50) << std::endl; return; }
     if (text.empty()) { return; }
 
     SDL_Surface* textSurface = nullptr;
@@ -46,13 +31,13 @@ void render_text(const string& text, int x, int y, SDL_Color color, bool center,
     }
     
     if (!textSurface) {
-        cerr << "Unable to render text surface! SDL_ttf Error: " << TTF_GetError() << " for text: " << text.substr(0,50) << endl;
+        std::cerr << "Unable to render text surface! SDL_ttf Error: " << TTF_GetError() << " for text: " << text.substr(0,50) << std::endl;
         return;
     }
 
     SDL_Texture* textTexture = SDL_CreateTextureFromSurface(gRenderer, textSurface);
     if (!textTexture) {
-        cerr << "Unable to create texture from rendered text! SDL Error: " << SDL_GetError() << endl;
+        std::cerr << "Unable to create texture from rendered text! SDL Error: " << SDL_GetError() << std::endl;
         SDL_FreeSurface(textSurface);
         return;
     }
@@ -101,7 +86,7 @@ void render_input_field(const InputField& field) {
     }
 
     if (gFont) {
-        string displayText = field.text;
+        std::string displayText = field.text; 
         int text_h = TTF_FontHeight(gFont);
         int text_y = field.rect.y + (field.rect.h - text_h) / 2; 
 
@@ -114,7 +99,7 @@ void render_input_field(const InputField& field) {
     }
 }
 
-void update_button_hover(int mouseX, int mouseY, vector<Button>& buttons) {
+void update_button_hover(int mouseX, int mouseY, std::vector<Button>& buttons) { 
     for (auto& button : buttons) { 
         button.hovered = (mouseX >= button.rect.x && mouseX <= button.rect.x + button.rect.w &&
                           mouseY >= button.rect.y && mouseY <= button.rect.y + button.rect.h);

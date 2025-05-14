@@ -13,22 +13,22 @@
 #endif
 
 // Include the new header files
-#include "app_logic.h" // Defines AppState (via enum eventType indirectly, fix needed), User, events etc.
-#include "gui_utils.h" // Defines Button, InputField, render functions
+#include "gui_utils.h" // Defines AppState, Button, InputField, render functions, extern consts
+#include "app_logic.h" // Defines eventType, User, events etc.
 
 // Using std namespace for convenience in this main file
 using namespace std;
 
-// --- Global Variables (defined here) ---
+// --- Global Variable Definitions ---
 
 // SDL and Font Globals (initialized in init_sdl)
 SDL_Window* gWindow = nullptr;
 SDL_Renderer* gRenderer = nullptr;
 TTF_Font* gFont = nullptr;
 
-// GUI Constants 
+// GUI Constants (Definitions for externs in gui_utils.h)
 const int SCREEN_WIDTH = 800;
-const int SCREEN_HEIGHT = 600;
+const int SCREEN_HEIGHT = 600; // Not currently externed, but good to keep with other consts
 SDL_Color TEXT_COLOR = {0, 0, 0, 255};
 SDL_Color ERROR_TEXT_COLOR = {200, 0, 0, 255};
 SDL_Color SUCCESS_TEXT_COLOR = {0, 128, 0, 255};
@@ -36,17 +36,8 @@ SDL_Color INPUT_BG_COLOR = {220, 220, 220, 255};
 SDL_Color BUTTON_COLOR = {180, 180, 220, 255};
 SDL_Color BUTTON_HOVER_COLOR = {200, 200, 240, 255};
 
-// Application State and Logic Globals
-// AppState enum definition needs to be visible before gui_utils.h uses it in Button struct.
-// Moving AppState enum here, or to a common_types.h included by all.
-// For now, let's define it here before including gui_utils.h if it's not in app_logic.h
-// Correction: AppState is an enum, not eventType. It should be defined before use.
-enum AppState {
-    STATE_USER_DETAILS, STATE_MAIN_MENU, STATE_CREATE_EVENT_TYPE, STATE_CREATE_EVENT_DETAILS,
-    STATE_SHOW_ALL_EVENTS, STATE_SIGN_UP_FOR_EVENT, STATE_DELETE_EVENT, STATE_SEARCH_EVENT,
-    STATE_SEARCH_RESULTS, STATE_CONFIRM_ACTION, STATE_EXITED 
-};
-AppState currentState = STATE_USER_DETAILS; // Now AppState is defined
+// AppState enum is defined in gui_utils.h
+AppState currentState = STATE_USER_DETAILS; 
 
 User* currentUser = nullptr; 
 events* eventManager = nullptr; 
@@ -55,9 +46,9 @@ events* eventManager = nullptr;
 string currentMessage = ""; 
 vector<string> displayedEventList; 
 string inputBuffer_generic = ""; 
-string suggestedMatch = ""; // Used by events class, but also for display in confirm
+string suggestedMatch; 
 int actionToConfirm = -1; 
-eventType pendingEventType; // This enum is from app_logic.h
+eventType pendingEventType; 
 
 // Global InputField Instances
 InputField eventTitleInput(50, 150, 300, 30, "Event Title");
@@ -75,6 +66,16 @@ InputField sharedInputField(SCREEN_WIDTH/2 - 150, 150, 300, 30, "Enter text here
 
 vector<InputField*> activeInputFieldsOnScreen; 
 InputField* focusedInputField = nullptr;     
+
+// --- Forward declarations for helper functions defined in this file ---
+void clear_input_fields_for_create_event();
+void clear_generic_input_buffer();
+void reset_confirmation_state();
+void handle_mouse_click(int mouseX, int mouseY, vector<Button>& buttons, vector<InputField*>& currentScreenInputFields);
+void main_loop_iteration();
+bool init_sdl();
+void close_sdl();
+
 
 // --- Main Application Logic Functions (specific to main.cpp orchestration) ---
 
@@ -99,7 +100,6 @@ void handle_mouse_click(int mouseX, int mouseY, vector<Button>& buttons, vector<
         if(!clickedOnAnyButton && focusedInputField->isActive) { 
              std::cout << "Clicked outside active field " << focusedInputField->placeholder << " and not on a button. Deactivating." << std::endl;
              focusedInputField->isActive = false; 
-             // Keep focusedInputField pointing, just inactive.
         }
     }
 
@@ -121,7 +121,8 @@ void handle_mouse_click(int mouseX, int mouseY, vector<Button>& buttons, vector<
             }
             else if (currentState == STATE_CREATE_EVENT_TYPE && (button.actionId >=0 && button.actionId <=2) ) { 
                 if (button.actionId == 0) pendingEventType = Webinar; else if (button.actionId == 1) pendingEventType = Conference; else if (button.actionId == 2) pendingEventType = Workshop;
-                clear_input_fields_for_create_event(); currentState = STATE_CREATE_EVENT_DETAILS; currentMessage = "";
+                clear_input_fields_for_create_event(); 
+                currentState = STATE_CREATE_EVENT_DETAILS; currentMessage = "";
                 focusedInputField = &eventTitleInput; if(focusedInputField) focusedInputField->isActive = true; 
                 return; 
             }
@@ -133,11 +134,11 @@ void handle_mouse_click(int mouseX, int mouseY, vector<Button>& buttons, vector<
             }
             else if (currentState == STATE_DELETE_EVENT && button.actionId == 0) { 
                 bool fd, fs; if(eventManager) currentMessage = eventManager->attemptDeleteEvent(inputBuffer_generic, fd, fs); else { currentMessage = "Error: System not initialized."; fd=false; fs=false;}
-                if (fd) clear_generic_input_buffer(); else if (fs) { actionToConfirm = 0; currentState = STATE_CONFIRM_ACTION;} return;
+                if (fd) clear_generic_input_buffer(); else if (fs) { actionToConfirm = 0; currentState = STATE_CONFIRM_ACTION;} return; 
             }
             else if (currentState == STATE_SIGN_UP_FOR_EVENT && button.actionId == 0) { 
                 bool fd, fs; string sMsg; if(eventManager && currentUser) currentMessage = eventManager->attemptSignUp(currentUser, inputBuffer_generic, fd, fs, sMsg); else { currentMessage = "Error: System not initialized for sign up."; fd=false; fs=false;}
-                if (fd) { currentMessage = sMsg; clear_generic_input_buffer();} else if (fs) { actionToConfirm = 1; currentState = STATE_CONFIRM_ACTION;} return;
+                if (fd) { currentMessage = sMsg; clear_generic_input_buffer();} else if (fs) { actionToConfirm = 1; currentState = STATE_CONFIRM_ACTION;} return; 
             }
             else if (currentState == STATE_SEARCH_EVENT && button.actionId == 0) { 
                 if(eventManager) displayedEventList = eventManager->searchEvents(inputBuffer_generic); else displayedEventList.assign(1,"Error: Sys init.");
@@ -147,9 +148,9 @@ void handle_mouse_click(int mouseX, int mouseY, vector<Button>& buttons, vector<
                 if (button.actionId == 10) { 
                     if (actionToConfirm == 0) { if(eventManager) currentMessage = eventManager->confirmDeleteSuggestedEvent(); else currentMessage = "Err: Sys init."; } 
                     else if (actionToConfirm == 1) { string sMsg; if(eventManager && currentUser) currentMessage = eventManager->confirmSignUpSuggestedEvent(currentUser, sMsg); else currentMessage = "Err: Sys init."; if (!sMsg.empty() && currentMessage.find("Did you mean") == string::npos && currentMessage.find("Error:") == string::npos) currentMessage = sMsg; }
-                    clear_generic_input_buffer(); reset_confirmation_state();
-                } else if (button.actionId == 11) { currentMessage = "Action cancelled for '" + suggestedMatch +"'."; clear_generic_input_buffer(); reset_confirmation_state();
-                } else if (button.actionId == 99) { currentState = STATE_MAIN_MENU; currentMessage = "Confirmation cancelled."; clear_generic_input_buffer(); reset_confirmation_state(); }
+                    clear_generic_input_buffer(); reset_confirmation_state(); 
+                } else if (button.actionId == 11) { currentMessage = "Action cancelled for '" + suggestedMatch +"'."; clear_generic_input_buffer(); reset_confirmation_state(); 
+                } else if (button.actionId == 99) { currentState = STATE_MAIN_MENU; currentMessage = "Confirmation cancelled."; clear_generic_input_buffer(); reset_confirmation_state(); } 
                 return;
             }
             else if (button.actionId == 9902) { 
@@ -313,8 +314,6 @@ void main_loop_iteration() {
             sharedInputField.isActive = true; 
             std::cout << "State " << currentState << ": Set focus to sharedInputField. Placeholder: " << sharedInputField.placeholder << std::endl;
         }
-        // inputBuffer_generic is synced from sharedInputField.text within the text input event handling
-        // No need to set sharedInputField.text = inputBuffer_generic here, as that would overwrite user input.
         render_input_field(sharedInputField);
 
         currentButtonsOnScreen.emplace_back(SCREEN_WIDTH/2-160,200,150,40,buttonText,currentState,0);
@@ -338,6 +337,24 @@ void main_loop_iteration() {
     for (auto& btn : currentButtonsOnScreen) { render_button(btn); }
     SDL_RenderPresent(gRenderer);
 }
+
+// --- Helper function definitions ---
+void clear_input_fields_for_create_event() { 
+    eventTitleInput.text = ""; 
+    eventDescInput.text = ""; 
+    eventDateInput.text = ""; 
+    eventPlatformInput.text = ""; 
+    eventCapacityInput.text = ""; 
+}
+void clear_generic_input_buffer(){ 
+    inputBuffer_generic = ""; 
+    sharedInputField.text = ""; 
+}
+void reset_confirmation_state() { 
+    suggestedMatch = ""; 
+    actionToConfirm = -1; 
+}
+
 
 bool init_sdl() { 
     if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS)<0){cerr<<"SDL Init Fail: "<<SDL_GetError()<<endl;return false;}
