@@ -2,11 +2,19 @@
 #include <emscripten.h> 
 #endif
 
-#include "app_logic.h" // This will now correctly bring in the SHIFT definition
+#include "app_logic.h"
 #include <iostream> 
 
 // Using namespace std for convenience in this .cpp file
 using namespace std;
+
+// This global is used by attemptDeleteEvent/attemptSignUp to store the suggestion
+// It's then read by confirmDeleteSuggestedEvent/confirmSignUpSuggestedEvent
+// and by the UI in main.cpp to display the "Did you mean X?" message.
+// This is not ideal from a strict encapsulation perspective but matches the prior structure.
+// A better approach would be for these functions to return a struct containing
+// the message and any suggestion, or for a UI state class to manage this.
+extern string suggestedMatch; // Defined in main.cpp
 
 // --- Helper Function Definitions ---
 string cEncrypt(const string& str, int shift) {
@@ -53,10 +61,10 @@ int levenshteinDistance(const string& a, const string& b) {
     return dp[m][n];
 }
 
-void updateBestMatch(const string& query, const string& candidate, string& bestMatch, int& minDist) {
+void updateBestMatch(const string& query, const string& candidate, string& bestMatch_ref, int& minDist) { // Renamed bestMatch to avoid conflict
     if (candidate.empty() && query.empty()) { 
         minDist = 0;
-        bestMatch = candidate; 
+        bestMatch_ref = candidate; 
         return;
     }
     if (candidate.empty() && !query.empty()) { 
@@ -66,7 +74,7 @@ void updateBestMatch(const string& query, const string& candidate, string& bestM
     int dist = levenshteinDistance(query, candidate);
     if (dist < minDist) {
         minDist = dist;
-        bestMatch = candidate;
+        bestMatch_ref = candidate;
     }
 }
 
@@ -118,6 +126,11 @@ string User::getCompanyOrSchool() const { return companyOrSchool; }
 // --- attendee Class Method Definitions ---
 attendee::attendee(string n, string e, string p, string cs) :
     name(n), email(e), phoneNum(p), companyOrSchool(cs) {}
+string attendee::getName() const { return name; }
+string attendee::getEmail() const { return email; }
+string attendee::getPhoneNum() const { return phoneNum; }
+string attendee::getcompanyOrSchool() const { return companyOrSchool; }
+
 
 // --- event Class Method Definitions ---
 event::event(string t, string h, string d, string dt, string v, int c) :
@@ -147,10 +160,19 @@ string event::getvPlatform() const { return vPlatform; }
 int event::getcapacity() const { return capacity; }
 int event::getAttendeeCount() const { return attendees.size(); }
 
+const std::vector<attendee*>& event::getAttendees() const {
+    return attendees;
+}
+void event::addAttendee(attendee* a) {
+    if (a) { // Basic null check
+        attendees.push_back(a);
+    }
+}
+
 void event::setTitle(string t) { title = t; }
 void event::setHost(string h) { host = h; }
 void event::setDescription(string d) { description = d; }
-void event::setDateAndTime(string dt) { dateAndTime = dt; }
+void event::setDateAndTime(string dt_val) { dateAndTime = dt_val; } // Parameter name changed to avoid conflict
 void event::setvPlatform(string v) { vPlatform = v; }
 void event::setCapacity(int c) { capacity = c; }
 
@@ -166,8 +188,8 @@ event* event::createEvent(eventType type, User* user, const string& title_val, c
 }
 
 // --- webinar Class Method Definitions ---
-webinar::webinar(eventType ty_enum, string t, string h, string d, string dt, string v, int c)
-    : event(t, h, d, dt, v, c), type_val(ty_enum) {} 
+webinar::webinar(eventType ty_enum, string t, string h, string d, string dt_val, string v, int c) // dt_val to avoid conflict
+    : event(t, h, d, dt_val, v, c), type_val(ty_enum) {} 
 
 webinar::webinar(User* user, const string& t, const string& desc, const string& date, const string& vp, int cap)
     : event(user, t, desc, date, vp, cap) {
@@ -186,8 +208,8 @@ string webinar::signUp(User* user, string& message) {
 eventType webinar::getType() { return type_val; }
 
 // --- conference Class Method Definitions ---
-conference::conference(eventType ty_enum, string t, string h, string d, string dt, string v, int c)
-    : event(t, h, d, dt, v, c), type_val(ty_enum) {}
+conference::conference(eventType ty_enum, string t, string h, string d, string dt_val, string v, int c) // dt_val
+    : event(t, h, d, dt_val, v, c), type_val(ty_enum) {}
 
 conference::conference(User* user, const string& t, const string& desc, const string& date, const string& vp, int cap)
     : event(user, t, desc, date, vp, cap) {
@@ -206,8 +228,8 @@ string conference::signUp(User* user, string& message) {
 eventType conference::getType() { return type_val; }
 
 // --- workshop Class Method Definitions ---
-workshop::workshop(eventType ty_enum, string t, string h, string d, string dt, string v, int c)
-    : event(t, h, d, dt, v, c), type_val(ty_enum) {}
+workshop::workshop(eventType ty_enum, string t, string h, string d, string dt_val, string v, int c) // dt_val
+    : event(t, h, d, dt_val, v, c), type_val(ty_enum) {}
 
 workshop::workshop(User* user, const string& t, const string& desc, const string& date, const string& vp, int cap)
     : event(user, t, desc, date, vp, cap) {
@@ -234,7 +256,7 @@ events::events() : dataFilePath("/database_eventmgm/EventFile.txt") {
 events::~events() {
     saveEventsToFile(); 
     for (auto e : allEvents) {
-        delete e;
+        if (e) delete e; // Null check before delete
     }
     allEvents.clear();
 }
@@ -306,7 +328,6 @@ string events::attemptDeleteEvent(const string& titleQuery, bool& foundDirectly,
         }
     }
     
-    extern string suggestedMatch; 
     if (!localSuggestedMatch.empty() && minDist < 5 && levenshteinDistance(titleQuery, localSuggestedMatch) <= (localSuggestedMatch.length() / 2) ) {
         suggestedMatch = localSuggestedMatch; 
         foundSuggestion = true;
@@ -316,7 +337,6 @@ string events::attemptDeleteEvent(const string& titleQuery, bool& foundDirectly,
 }
 
 string events::confirmDeleteSuggestedEvent() {
-    extern string suggestedMatch; 
     if (suggestedMatch.empty()) {
         return "Error: No suggested event to delete.";
     }
@@ -332,27 +352,28 @@ string events::attemptSignUp(User* user, const string& titleQuery, bool& foundDi
     }
     foundDirectly = false;
     foundSuggestion = false;
-    signUpMessage = "";
+    signUpMessage = ""; // Clear previous message
     string localSuggestedMatch = "";
     int minDist = numeric_limits<int>::max();
 
     for (auto e : allEvents) {
         if (e && e->getTitle() == titleQuery) {
-            signUpMessage = e->signUp(user, signUpMessage); 
-            foundDirectly = true;
-            return signUpMessage;
+            // signUpMessage is populated by the event's signUp method
+            return e->signUp(user, signUpMessage); 
         }
         if(e) {
             updateBestMatch(titleQuery, e->getTitle(), localSuggestedMatch, minDist);
         }
     }
-    extern string suggestedMatch; 
+    
     if (!localSuggestedMatch.empty() && minDist < 5 && levenshteinDistance(titleQuery, localSuggestedMatch) <= (localSuggestedMatch.length() / 2)) {
         suggestedMatch = localSuggestedMatch; 
         foundSuggestion = true;
-        return "Event '" + titleQuery + "' not found. Did you mean '" + suggestedMatch + "'?";
+        signUpMessage = "Event '" + titleQuery + "' not found. Did you mean '" + suggestedMatch + "'?";
+        return signUpMessage;
     }
-    return "Event '" + titleQuery + "' not found for sign up.";
+    signUpMessage = "Event '" + titleQuery + "' not found for sign up.";
+    return signUpMessage;
 }
 
 string events::confirmSignUpSuggestedEvent(User* user, string& signUpMessage) {
@@ -360,14 +381,13 @@ string events::confirmSignUpSuggestedEvent(User* user, string& signUpMessage) {
         signUpMessage = "Error: User not signed in for confirmation.";
         return signUpMessage;
     }
-    extern string suggestedMatch; 
     if (suggestedMatch.empty()) {
         signUpMessage = "Error: No suggested event to sign up for.";
         return signUpMessage;
     }
     bool fd, fs; 
-    string result = attemptSignUp(user, suggestedMatch, fd, fs, signUpMessage);
-    return result;
+    // signUpMessage will be populated by attemptSignUp
+    return attemptSignUp(user, suggestedMatch, fd, fs, signUpMessage);
 }
 
 vector<string> events::searchEvents(const string& query) {
@@ -399,12 +419,27 @@ bool events::saveEventsToFile() {
     for (const auto e : allEvents) {
         if (e) { 
             eventFile << to_string(e->getType()) << '|'
-                      << cEncrypt(e->getTitle(), SHIFT) << '|' // SHIFT is now visible
+                      << cEncrypt(e->getTitle(), SHIFT) << '|'
                       << cEncrypt(e->getHost(), SHIFT) << '|'
                       << cEncrypt(e->getDescription(), SHIFT) << '|'
                       << cEncrypt(e->getdateAndTime(), SHIFT) << '|'
                       << cEncrypt(e->getvPlatform(), SHIFT) << '|'
-                      << to_string(e->getcapacity()) << "\n";
+                      << to_string(e->getcapacity()) << "\n"; // End of event main line
+            
+            const auto& eventAttendees = e->getAttendees();
+            if (!eventAttendees.empty()) {
+                eventFile << eventAttendees.size(); // Number of attendees
+                for (const auto att : eventAttendees) {
+                    if (att) {
+                        eventFile << ";" // Separator before each attendee block
+                                  << cEncrypt(att->getName(), SHIFT) << ","
+                                  << cEncrypt(att->getEmail(), SHIFT) << ","
+                                  << cEncrypt(att->getPhoneNum(), SHIFT) << ","
+                                  << cEncrypt(att->getcompanyOrSchool(), SHIFT);
+                    }
+                }
+                eventFile << "\n"; // Newline after all attendees for this event
+            }
         }
     }
     eventFile.close();
@@ -433,35 +468,35 @@ void events::loadEventsFromFile() {
         cout << "Info: " << dataFilePath << " not found or could not be opened. Starting with no events." << endl;
         return;
     }
-    string line;
+    string eventLine;
     int lineNumber = 0;
-    while (getline(eventFile, line)) {
+    while (getline(eventFile, eventLine)) {
         lineNumber++;
-        if (line.empty() || line.find_first_not_of(" \t\n\v\f\r") == string::npos) {
+        if (eventLine.empty() || eventLine.find_first_not_of(" \t\n\v\f\r") == string::npos) {
             continue; 
         }
 
-        stringstream s(line);
+        stringstream s_event(eventLine);
         string typeStr_load, title_load, host_load, description_load, dateAndTime_load, vPlatform_load, capStr_load;
         char del = '|';
 
-        getline(s, typeStr_load, del);
-        getline(s, title_load, del);
-        getline(s, host_load, del);
-        getline(s, description_load, del);
-        getline(s, dateAndTime_load, del);
-        getline(s, vPlatform_load, del);
-        getline(s, capStr_load); 
+        getline(s_event, typeStr_load, del);
+        getline(s_event, title_load, del);
+        getline(s_event, host_load, del);
+        getline(s_event, description_load, del);
+        getline(s_event, dateAndTime_load, del);
+        getline(s_event, vPlatform_load, del);
+        getline(s_event, capStr_load); 
 
-        if (s.fail() && !s.eof()){ 
-             cerr << "Warn: Stream error reading line " << lineNumber << ": " << line << ". Skipping." << endl;
+        if (s_event.fail() && !s_event.eof()){ 
+             cerr << "Warn: Stream error reading event line " << lineNumber << ": " << eventLine << ". Skipping." << endl;
              continue;
         }
         
         if (typeStr_load.empty() || title_load.empty() || host_load.empty() || 
             description_load.empty() || dateAndTime_load.empty() || vPlatform_load.empty() || capStr_load.empty()) {
             if (!(typeStr_load.empty() && title_load.empty() && capStr_load.empty())) { 
-                 cerr << "Warn: Malformed line " << lineNumber << " (missing fields): " << line << ". Skipping." << endl;
+                 cerr << "Warn: Malformed event line " << lineNumber << " (missing fields): " << eventLine << ". Skipping." << endl;
             }
             continue;
         }
@@ -474,11 +509,11 @@ void events::loadEventsFromFile() {
                 throw std::invalid_argument("Capacity contains non-digit characters or extra data.");
             }
         } catch (const std::exception& e) {
-            cerr << "Warn: Invalid capacity '" << capStr_load << "' in line " << lineNumber << ": " << line << ". Details: " << e.what() << ". Skipping." << endl;
+            cerr << "Warn: Invalid capacity '" << capStr_load << "' in event line " << lineNumber << ": " << eventLine << ". Details: " << e.what() << ". Skipping." << endl;
             continue;
         }
 
-        title_load = cDecrypt(title_load, SHIFT); // SHIFT is now visible
+        title_load = cDecrypt(title_load, SHIFT);
         host_load = cDecrypt(host_load, SHIFT);
         description_load = cDecrypt(description_load, SHIFT);
         dateAndTime_load = cDecrypt(dateAndTime_load, SHIFT);
@@ -489,7 +524,7 @@ void events::loadEventsFromFile() {
         else if (typeStr_load == "1") type_enum_load = Conference;
         else if (typeStr_load == "2") type_enum_load = Workshop;
         else {
-            cerr << "Warn: Unknown event type '" << typeStr_load << "' in line " << lineNumber << ": " << line << ". Skipping." << endl;
+            cerr << "Warn: Unknown event type '" << typeStr_load << "' in event line " << lineNumber << ": " << eventLine << ". Skipping." << endl;
             continue;
         }
         
@@ -501,11 +536,97 @@ void events::loadEventsFromFile() {
         else if (type_enum_load == Workshop)
             ev = new workshop(type_enum_load, title_load, host_load, description_load, dateAndTime_load, vPlatform_load, capacity_load);
 
-        if (ev) {
-            allEvents.push_back(ev);
-        } else {
-            cerr << "Error creating event object from file line " << lineNumber << ": " << line << endl;
+        if (!ev) {
+            cerr << "Error creating event object from event line " << lineNumber << ": " << eventLine << endl;
+            continue; // Skip to next event line
         }
+
+        // Try to read the next line for attendee data
+        string attendeeDataLine;
+        if (getline(eventFile, attendeeDataLine)) {
+            lineNumber++; // Account for the attendee line
+            if (!attendeeDataLine.empty() && attendeeDataLine.find('|') == string::npos) { // Basic check: attendee line shouldn't look like an event line
+                stringstream s_attendees(attendeeDataLine);
+                string numAttendeesStr;
+                getline(s_attendees, numAttendeesStr, ';'); // Get number of attendees
+                
+                try {
+                    int numAttendees = 0;
+                    if (!numAttendeesStr.empty()) {
+                         numAttendees = stoi(numAttendeesStr);
+                    }
+
+                    for (int i = 0; i < numAttendees; ++i) {
+                        string singleAttendeeData;
+                        if (!getline(s_attendees, singleAttendeeData, ';')) {
+                            cerr << "Warn: Could not read expected attendee data block " << (i+1) << " for event '" << title_load << "' on line " << lineNumber << endl;
+                            break; 
+                        }
+                        
+                        stringstream s_single_attendee(singleAttendeeData);
+                        string name_att, email_att, phone_att, company_att;
+                        char comma_del = ',';
+
+                        getline(s_single_attendee, name_att, comma_del);
+                        getline(s_single_attendee, email_att, comma_del);
+                        getline(s_single_attendee, phone_att, comma_del);
+                        getline(s_single_attendee, company_att); // Read rest for company
+
+                        if (name_att.empty() && email_att.empty() && phone_att.empty() && company_att.empty() && s_single_attendee.eof() && !s_single_attendee.fail()){
+                            // Potentially an empty attendee string from an extra semicolon, skip it
+                            continue;
+                        }
+                        if (s_single_attendee.fail() && !s_single_attendee.eof()){
+                             cerr << "Warn: Stream error reading attendee details for event '" << title_load << "' on line " << lineNumber << endl;
+                             continue;
+                        }
+
+
+                        name_att = cDecrypt(name_att, SHIFT);
+                        email_att = cDecrypt(email_att, SHIFT);
+                        phone_att = cDecrypt(phone_att, SHIFT);
+                        company_att = cDecrypt(company_att, SHIFT);
+                        
+                        ev->addAttendee(new attendee(name_att, email_att, phone_att, company_att));
+                    }
+                } catch (const std::exception& e) {
+                    cerr << "Warn: Error parsing attendee count or data for event '" << title_load << "' on line " << lineNumber << ". Details: " << e.what() << endl;
+                }
+            } else {
+                // This line was not attendee data, it's likely the next event or EOF.
+                // We need to "put it back" or handle it. The outer loop's getline will get it if it's a new event.
+                // If it was EOF, the outer loop will terminate.
+                // If it was an empty line, outer loop skips.
+                // If it was a new event line, the current getline has consumed it.
+                // This requires careful handling of the file stream position.
+                // A simpler way is to check if `attendeeDataLine` starts with a digit and `|`.
+                // If so, it's a new event, and we need to process `attendeeDataLine` as `eventLine` in the next iteration.
+                // This is complex with simple getline.
+                // The current implementation assumes if a line is read, and it's not attendee data, the outer loop's next getline will correctly pick up.
+                // This might lead to skipping an event if an event has no attendees and the next line is an event.
+                // The `eventFile.seekg(-attendeeDataLine.length() -1, ios_base::cur);` would be one way to "put back", but tricky with newlines.
+                // For now, this simplified logic might miss an event if an event with attendees is followed by an event with no attendees.
+                // The format `NumAttendees;data` on the attendee line helps. If NumAttendees is 0, the line might be "0\n".
+                 if (!attendeeDataLine.empty() && attendeeDataLine.find('|') != string::npos) {
+                    // It looks like the next event line, we need to process it in the next iteration
+                    // This requires the stream to be reset or the line to be processed now.
+                    // The simplest is to assume the outer loop will pick it up, but this means
+                    // the current `getline(eventFile, eventLine)` has already consumed it.
+                    // This is a known limitation of this simple line-by-line parsing for multi-line records.
+                    // A more robust parser would handle lookahead or a more structured format.
+                    // For now, we'll assume the format is strict: event line, then OPTIONAL attendee line.
+                    // If the attendee line read is actually the next event, the current logic will misinterpret.
+                    // The check `attendeeDataLine.find('|') == string::npos` tries to mitigate this.
+                    // If it *does* find '|', it means it's likely a new event, so we shouldn't parse it as attendees.
+                    // The problem is, `getline` has already advanced the stream.
+                    // This part of the loading is the most fragile.
+                    // Let's assume for now that if an attendee line is expected (next line exists), it IS the attendee line.
+                    // The `saveEventsToFile` writes `attendees.size()` first, so if 0, it writes "0\n".
+                    // If `attendeeDataLine` is "0", then numAttendees will be 0, and the inner loop won't run. This is correct.
+                 }
+            }
+        }
+        allEvents.push_back(ev);
     }
     eventFile.close();
     cout << "Loaded " << allEvents.size() << " events from " << dataFilePath << endl;

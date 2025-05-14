@@ -1,10 +1,9 @@
 #pragma once // Include guard
 
-// Define SHIFT at the top so it's available for all subsequent includes and declarations
 #define SHIFT 32 
 
-#include <string> // For std::string
-#include <vector> // For std::vector
+#include <string> 
+#include <vector> 
 #include <limits>    
 #include <algorithm> 
 #include <fstream>   
@@ -60,6 +59,10 @@ private:
     std::string companyOrSchool;
 public:
     attendee(std::string n, std::string e, std::string p, std::string cs);
+    std::string getName() const;      // Added const
+    std::string getEmail() const;     // Added const
+    std::string getPhoneNum() const;  // Added const
+    std::string getcompanyOrSchool() const; // Added const
 };
 
 class event {
@@ -81,13 +84,17 @@ public:
     virtual std::string signUp(User* user, std::string& message) = 0; 
     virtual eventType getType() = 0; 
 
-    std::string getTitle() const;
-    std::string getHost() const;
-    std::string getDescription() const;
-    std::string getdateAndTime() const;
-    std::string getvPlatform() const;
-    int getcapacity() const;
+    std::string getTitle() const; // Added const
+    std::string getHost() const; // Added const
+    std::string getDescription() const; // Added const
+    std::string getdateAndTime() const; // Added const
+    std::string getvPlatform() const; // Added const
+    int getcapacity() const; // Added const
     int getAttendeeCount() const;
+
+    // New methods for attendee management
+    const std::vector<attendee*>& getAttendees() const; // Get a const ref to the vector
+    void addAttendee(attendee* a); // Add an attendee
 
     void setTitle(std::string t);
     void setHost(std::string h);
@@ -133,6 +140,11 @@ class events {
 private:
     std::vector<event*> allEvents;
     std::string dataFilePath; 
+    // Global suggestedMatch for "did you mean" functionality, accessed via extern in main.cpp
+    // This is not ideal; better to pass it around or make it a member of a UI state class.
+    // For now, keeping it as it was in the previous structure for minimal changes outside app_logic.
+    // extern std::string suggestedMatch; 
+
 
 public:
     events(); 
