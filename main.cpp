@@ -71,7 +71,7 @@ int main() {
                 eventManager.showAllEvents();
                 break;
             case 4:
-                eventManager.signUp(user); // Calls Events::signUp
+                eventManager + user; // Calls Events::signUp
                 break;
             case 5:
                 eventManager.search();
