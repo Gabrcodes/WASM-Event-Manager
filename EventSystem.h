@@ -159,7 +159,7 @@ public:
     void createEvent(User* user);
     void showAllEvents() const;
     void deleteEvent();
-    void signUp(User* user); // For the collection, distinct from Event::signUp
+    void operator+(User* user);// For the collection, distinct from Event::signUp
     void search();
 
     bool addToFile(std::fstream& eventFile);

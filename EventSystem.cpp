@@ -1,9 +1,7 @@
 #include "EventSystem.h"
 
-// Using namespace std to mimic original global scope effect for this compilation unit
 using namespace std;
 
-// --- Utility Function Implementations ---
 string cEncrypt(const string& str, int shift) {
     string result = str;
     for (char& c : result) {
@@ -78,7 +76,7 @@ string User::getEmail() const { return email; }
 string User::getPhoneNumber() const { return phoneNum; }
 string User::getCompanyOrSchool() const { return companyOrSchool; }
 
-// --- Attendee Class Implementation ---
+// Attendee Class Implementation
 Attendee::Attendee(string n, string e, string p, string cs)
     : name(n), email(e), phoneNum(p), companyOrSchool(cs) {}
 
@@ -91,8 +89,8 @@ string Attendee::getcompanyOrSchool() { return companyOrSchool; }
 Event::Event(string t, string h, string d, string dt, string v, int c)
     : title(t), host(h), description(d), dateAndTime(dt), vPlatform(v), capacity(c) {}
 
-Event::Event(User* user) { // Constructor taking User input
-    host = user->getName(); // Assuming user is not null
+Event::Event(User* user) { // constructor taking User input
+    host = user->getName(); // assuming user is not null
     cout << "Enter title: ";
     getline(cin >> ws, title);
     cout << "Enter description: ";
@@ -103,8 +101,8 @@ Event::Event(User* user) { // Constructor taking User input
     getline(cin >> ws, vPlatform);
     cout << "Enter Capacity: ";
     cin >> capacity;
-    // Original code didn't have input validation loop here or cin.ignore()
-    attendees = {}; // Initialize attendees vector
+    // original code didn't have input validation loop here or cin.ignore()
+    attendees = {}; // initialize attendees vector
 }
 
 Event::~Event() {
@@ -128,10 +126,10 @@ void Event::setDateAndTime(string dt) { dateAndTime = dt; }
 void Event::setvPlatform(string v) { vPlatform = v; }
 void Event::setCapacity(int c) { capacity = c; }
 
-// Static factory method definition for Event
+// static factory method definition for Event
 Event* Event::createEvent(eventType type, User* user) {
     switch (type) {
-        // Need to use the actual class names (Webinar, Conference, Workshop)
+        // need to use the actual class names (Webinar, Conference, Workshop)
         case ::Webinar: return new class Webinar(user); // ::Webinar refers to the enum value
         case ::Conference: return new class Conference(user);
         case ::Workshop: return new class Workshop(user);
@@ -235,6 +233,7 @@ void Events::createEvent(User* user) {
     }
 }
 
+
 void Events::showAllEvents() const {
     if (allEvents.empty()) {
         cout << "No events created yet.\n";
@@ -288,7 +287,7 @@ void Events::deleteEvent() {
     if (!found) cout << "Event not found!" << endl;
 }
 
-void Events::signUp(User* user) { // For the collection
+void Events::operator+(User* user) { // signing up the user using operator overloading
     string n;
     cout << "Enter event title to sign up: ";
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
@@ -356,7 +355,7 @@ bool Events::addToFile(fstream& eventFile) {
 
     if (!eventFile.is_open()) return false;
 
-    for (const auto e : allEvents) { // Use const_auto for const access if possible (not strictly for writing)
+    for (const auto e : allEvents) { 
         if (!e) continue;
         eventFile << to_string(e->getType()) << '|'
                   << cEncrypt(e->getTitle(), SHIFT) << '|'
